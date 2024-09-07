@@ -1,0 +1,379 @@
+/**
+ *    author:  yangjl
+ *    created: 2024.13.08 19:37:32
+**/
+#include <bits/stdc++.h>
+#ifdef YJL
+#include "debug.h"
+#else
+#define debug(...)0
+#endif
+#define ALL(a) a.begin(),a.end()
+using namespace std;
+using ll = long long;
+
+template<class T>
+istream& operator>>(istream& is, vector<T>& v) {
+    for(auto& x : v) {
+        is >> x;
+    }
+    return is;
+}
+template<class T>
+int sgn(const T& v) {
+    static constexpr T eps = 1e-8;
+    return v > eps ? 1 : v < -eps ? -1 : 0;
+}
+template<class T>
+struct Point {// Point or Vector
+    T x, y, id;
+    Point() : x(0), y(0), id(-1) {}
+    Point(T x, T y) : x(x), y(y), id(-1) {}
+    Point(T x, T y, int id) : x(x), y(y), id(id) {}
+    template<class U>
+    explicit operator Point<U>() const {
+        return Point<U>(U(x), U(y));
+    }
+    Point operator+(const Point& o) const {
+        return Point(x + o.x, y + o.y);
+    }
+    Point operator-(const Point& o) const {
+        return Point(x - o.x, y - o.y);
+    }
+    Point operator-() const {
+        return Point(-x, -y);
+    }
+    Point operator*(const T& v) const {
+        return Point(x * v, y * v);
+    }
+    friend Point operator*(const T& v, const Point<T>& o) {
+        return Point(o.x * v, o.y * v);
+    }
+    Point operator/(const T& v) const {
+        return Point(x / v, y / v);
+    }
+    Point operator+=(const Point& o) {
+        x += o.x, y += o.y;
+        return *this;
+    }
+    Point operator-=(const Point& o) {
+        x -= o.x, y -= o.y;
+        return *this;
+    }
+    Point operator*=(const T& v) {
+        x *= v, y *= v;
+        return *this;
+    }
+    Point operator/=(const T& v) {
+        x /= v, y /= v;
+        return *this;
+    }
+    bool operator==(const Point& o) const {
+        return sgn(x - o.x) == 0 and sgn(y - o.y) == 0;
+    }
+    bool operator!=(const Point& o) const {
+        return sgn(x - o.x) != 0 or sgn(y - o.y) != 0;
+    }
+    bool operator<(const Point& o) const {
+        return sgn(x - o.x) < 0 or sgn(x - o.x) == 0 and sgn(y - o.y) < 0;
+    }
+    bool operator>(const Point& o) const {
+        return sgn(x - o.x) > 0 or sgn(x - o.x) == 0 and sgn(y - o.y) > 0;
+    }
+    static bool argcmp(const Point& a, const Point& b) {
+        static auto get = [&](const Point& o) {
+            if(sgn(o.x) == 0 and sgn(o.y) == 0) return 0;
+            if(sgn(o.y) > 0 or sgn(o.y) == 0 and sgn(o.x) < 0) return 1;
+            return -1;
+        };
+        int ta = get(a), tb = get(b);
+        if(ta != tb) return ta < tb;
+        return a.toLeft(b) == 1;// 不关注极径
+        // int tole = a.toLeft(b);
+        // if(tole != 0) return tole == 1;
+        // return sgn(a.square()-b.square()) < 0;// 极角相同按极径排
+    }
+    T dot(const Point& o) const {
+        return x * o.x + y * o.y;
+    }
+    T cross(const Point& o) const {
+        return x * o.y - y * o.x;
+    }
+    int toLeft(const Point& o) const {
+        return sgn(cross(o));
+    }
+    T square() const {
+        return x * x + y * y;
+    }
+    T interSquare(const Point& o) const {
+        return (*this - o).square();
+    }
+    friend istream& operator>>(istream& in, Point& o) {
+        return in >> o.x >> o.y;
+    }
+    friend ostream& operator<<(ostream& out, Point const& o) {
+        return out << "(" << o.x << "," << o.y << ")";
+    }
+    // 涉及浮点数
+    double length() const {
+        return sqrtl(square());
+    }
+    double distance(const Point& o) const {
+        return (*this - o).length();
+    }
+    // 逆时针旋转 rad
+    template<class U>
+    Point<U> rotate(U cosr, U sinr) const {
+        return Point(x * cosr - y * sinr, x * sinr + y * cosr);
+    }
+    // 两向量夹角范围是 [0,PI]
+    double ang(const Point& o) const {
+        return acosl(max(-1.0l, min(1.0l, dot(o) / (length() * o.length()))));
+    }
+};
+template<class T>
+struct Line {// Line or Segment
+    Point<T> a, b;// 方向向量为 a->b
+    Line() {}
+    Line(const Point<T>& a, const Point<T>& b) : a(a), b(b) {}
+    template<class U>
+    Line(const Point<U>& a, const Point<U>& b) : a(a), b(b) {}
+    // Line ----------------------------------------------------------
+    bool parallel(const Line& l) const {
+        return sgn((b - a).cross(l.b - l.a)) == 0;
+    }
+    int toLeft(const Point<T>& o) const {
+        return (b - a).toLeft(o - a);
+    }
+    // 涉及浮点数
+    // 直线交点
+    Point<double> lineIntersection(const Line& l) const {
+        return Point<double>(a) + Point<double>(b - a) *
+            (1. * (l.b - l.a).cross(a - l.a) / (l.b - l.a).cross(a - b));
+    }
+    // 点到直线的距离
+    double distanceLP(const Point<T>& o) const {
+        return abs((a - b).cross(a - o)) / (a - b).length();
+    }
+    // 点在直线上的投影
+    Point<T> projection(const Point<T>& o) const {
+        return a + (b - a) * (1. * (b - a).dot(o - a) / (b - a).square());
+    }
+    // Segment ----------------------------------------------------------
+    // -1 点在线段端点 | 0 点不在线段上 | 1 点严格在线段上
+    int contain(const Point<T>& o) const {
+        if(o == a or o == b) return -1;
+        return (o - a).toLeft(o - b) == 0 and sgn((o - a).dot(o - b)) < 0;
+    }
+    // 判断线段直线是否相交
+    // 0 线段和直线不相交 | 1 线段和直线严格相交 | 2 仅在某一线段端点处相交 | 3 直线包含线段
+    int interWithLine(const Line& l) const {
+        int num = !l.toLeft(a) + !l.toLeft(b);
+        if(num) return num + 1;
+        return l.toLeft(a) != l.toLeft(b);
+    }
+    // 判断两线段是否相交
+    // 0 两线段不相交 | 1 两线段严格相交 | 2 仅在某一线段端点处相交 | 3 两线段有重叠
+    int interWithSegment(Line s) const {
+        if((a < b) != (s.a < s.b))
+            swap(s.a, s.b);
+        int num = (contain(s.a) != 0) + (contain(s.b) != 0)
+            + (s.contain(a) != 0) + (s.contain(b) != 0);
+        if(parallel(s)) {
+            if(!num) return 0;
+            if(b == s.a or a == s.b) return 2;// -.-
+            return 3;
+        }
+        if(num) return 2;
+        return toLeft(s.a) * toLeft(s.b) == -1 and s.toLeft(a) * s.toLeft(b) == -1;
+    }
+    // 点到线段的距离
+    double distanceSP(const Point<T>& o) const {
+        if(sgn((o - a).dot(b - a)) < 0) return o.distance(a);
+        if(sgn((o - b).dot(a - b)) < 0) return o.distance(b);
+        return abs((a - b).cross(a - o)) / (a - b).length();
+    }
+    // 两线段间距离
+    double distanceSS(const Line& s) const {
+        if(interWithSegment(s)) return 0;
+        return min({distanceSP(s.a),distanceSP(s.b),
+                s.distanceSP(a),s.distanceSP(b)});
+    }
+};
+template<class T>
+struct Polygon {
+    int n;
+    vector<Point<T>> p;
+    // p 以逆时针顺序存储 2 遍
+    Polygon(vector<Point<T>> const& p_) : n(p_.size()), p(p_) {
+        p.insert(p.end(), p_.begin(), p_.end());
+    }
+    // 返回 回转数 = 逆时针转头圈数-顺时针转头圈数
+    // 1e9 在多边形上 | 0 不在多边形内 | !=0 在多边形内
+    int contain(const Point<T>& o) const {
+        int cnt = 0;
+        for(int i = 0; i < n; ++i) {
+            Point<T> const& u = p[i], v = p[i + 1];
+            Line<T> const l(u, v);
+            if(l.contain(o)) return 1e9;
+            cnt += l.toLeft(o) > 0 and sgn(u.y - o.y) < 0 and sgn(v.y - o.y) >= 0;
+            cnt -= l.toLeft(o) < 0 and sgn(u.y - o.y) >= 0 and sgn(v.y - o.y) < 0;
+        }
+        return cnt;
+    }
+    // 多边形面积的两倍，可用于判断点的存储顺序是顺时针或逆时针（逆正顺负）
+    T area() const {
+        T sum = 0;
+        for(int i = 0; i < n; ++i)
+            sum += p[i].cross(p[i + 1]);
+        return sum;
+    }
+    // 多边形的周长
+    double perimeter() const {
+        double sum = 0;
+        for(int i = 0; i < n; ++i)
+            sum += p[i].distance(p[i + 1]);
+        return sum;
+    }
+};
+
+template<class T>
+struct Convex : Polygon<T> {
+    using Polygon<T>::n;
+    using Polygon<T>::p;
+    Convex(vector<Point<T>> const& p_) : Polygon<T>(andrew(p_)) {}
+    // 对点集 p 求凸包
+    static auto andrew(vector<Point<T>> p) {
+        sort(p.begin(), p.end());
+        p.erase(unique(p.begin(), p.end()), p.end());
+        if(p.size() <= 1) return p;
+        vector<Point<T>> st;
+        for(auto& e : p) {
+            while(st.size() > 1 and
+                (st.back() - st.end()[-2]).toLeft(e - st.back()) <= 0)
+                st.pop_back();
+            st.push_back(e);
+        }
+        int sz = st.size();
+        for(int i = (int)p.size() - 2; i >= 0; --i) {
+            while(st.size() > sz and
+                (st.back() - st.end()[-2]).toLeft(p[i] - st.back()) <= 0)
+                st.pop_back();
+            st.push_back(p[i]);
+        }
+        st.pop_back();
+        return st;
+    }
+    // O(logn)判断点是否在凸多边形内
+    // -1 在边界上 | 0 在外部 | 1 严格在内部
+    int contain(const Point<T>& o) const {
+        if(n == 1) return p[0] == o ? -1 : 0;
+        int fTo = (p[1] - p[0]).toLeft(o - p[0]);
+        int bTo = (p.back() - p[0]).toLeft(o - p[0]);
+        if(fTo == -1 or bTo == 1) return 0;
+        if(fTo == 0) return sgn((o - p[0]).dot(o - p[1])) <= 0 ? -1 : 0;
+        if(bTo == 0) return sgn((o - p[0]).dot(o - p.back())) <= 0 ? -1 : 0;
+
+        int i = partition_point(p.begin() + 2, p.begin() + n, [&](Point<T> const& v) {
+            return (v - p[0]).toLeft(o - p[0]) >= 0;
+        }) - p.begin();
+        Line<T> const l(p[i - 1], p[i]);
+        return l.contain(o) ? -1 : l.toLeft(o) == 1;
+    }
+    // O(logn) 二分找到 f 方向上的切点 i，满足 p[i]-p[i-1],f(p[i]),p[i+1]-p[i] 逆时旋转
+    template<class Func>
+    int extreme(Func const& f) {
+        assert(n > 2);
+        Point<ll> const divVec = f(p[0]);
+        bool const flag = (p[0] - p[n - 1]).toLeft(divVec) < 0;
+        return partition_point(p.begin(), p.begin() + n, [&](Point<T> const& a) {
+            if(divVec.toLeft(a - p[0]) > 0) return flag;
+            return (*(&a + 1) - a).toLeft(f(a)) > 0;
+        }) - p.begin();
+    }
+    // O(logn) 二分找到 v 方向 和 -v 方向上的切点，返回值切点下标 in [0,n-1]
+    array<int, 2> tangentByLine(Point<T> const& v) {
+        int i = extreme([&](...) {return v; });
+        int j = extreme([&](...) {return -v; });
+        return {i,j};
+    }
+    // O(logn) 过点 o 向凸包做两条切线（先左后右），返回值切点下标 in [0,n-1]
+    // 需要保证 o 在凸包外面
+    array<int, 2> tangentByPoint(Point<T> const& o) {
+        int i = extreme([&](Point<T> const& a) {return o - a; });
+        int j = extreme([&](Point<T> const& a) {return a - o; });
+        return {i, j};
+    }
+};
+
+int main() {
+    cin.tie(nullptr)->sync_with_stdio(false);
+    int tt;
+    cin >> tt;
+    while(tt--) {
+        int n;
+        cin >> n;
+        vector<Point<ll>> ps(n);
+        cin >> ps;
+        Convex<ll> ve(ps);
+        vector<ll> pref(ve.n * 2);
+        for(int i = 0; i + 1 < pref.size(); ++i) {
+            pref[i + 1] = pref[i] + ve.p[i].cross(ve.p[i + 1]);
+        }
+
+        int q;
+        cin >> q;
+        while(q--) {
+            int k;
+            cin >> k;
+            vector<Point<ll>> a(k);
+            cin >> a;
+
+            vector<int> ids;
+            for(int i = 0; i < k; ++i) {
+                if(ve.contain(a[i])) {
+                    continue;
+                }
+                auto [j, k] = ve.tangentByPoint(a[i]);
+                a.push_back(ve.p[j]);
+                a.back().id = j;
+                a.push_back(ve.p[k]);
+                a.back().id = k;
+                ids.push_back(j);
+                ids.push_back(k);
+            }
+
+            Convex<ll> veNew(a);
+            ll ans = veNew.area();
+            sort(ALL(ids));
+            for(int i = 0; i < veNew.n; ++i) {
+                if(binary_search(ALL(ids), veNew.p[i].id)
+                    and binary_search(ALL(ids), veNew.p[i + 1].id)) {
+                    int j = veNew.p[i].id;
+                    int k = veNew.p[i + 1].id;
+                    if(j > k) {
+                        k += ve.n;
+                    }
+                    ans += pref[k] - pref[j] + ve.p[k].cross(ve.p[j]);
+                }
+            }
+            cout << ans << '\n';
+        }
+    }
+    return 0;
+}
+/*
+https://ac.nowcoder.com/acm/contest/28770/D
+凸包进阶，前缀和
+求对凸包 C1 新加入几个点的点集 S 之后的凸包 C2 的面积
+
+1. 求出 S 中位于凸包外的每个点对凸包的切线所在极点
+2. 求出这些极点和 S 一起组成的凸包 C3
+3. 那么 C3 和 C2 的差距在于部分 C1 中部分被对角线切开的半凸包
+这些半凸包的切线就是 C3 的边，通过判断 C3 的每一条边，边的端点是否属于 C1 来确定该边是不是切线
+C3 的面积加上这些切线切开的 C1 的面积 = C2 的面积
+
+切线切开的 C1 的面积的计算：通过对 C1 的点逆时针 cross 作前缀和，每次可以 O(1) 算出一段切开的面积
+
+复杂度 O((n + sum(k)) logn + sum(k) log k)
+*/
